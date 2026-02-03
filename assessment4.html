@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DPT Assessment: Participation & ADL Logic Trainer</title>
+    <style>
+        :root { --touro-blue: #003057; --accent: #2980b9; --success: #27ae60; --error: #c0392b; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; line-height: 1.6; background: #f4f7f6; padding: 20px; }
+        .container { max-width: 1150px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        h1, h2, h3 { color: var(--touro-blue); border-bottom: 2px solid #eee; padding-bottom: 8px; }
+        .score-panel { position: sticky; top: 10px; background: var(--touro-blue); color: white; padding: 15px; border-radius: 8px; text-align: center; margin-bottom: 20px; z-index: 100; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        .case-box { background: #eef2f7; border-left: 6px solid var(--touro-blue); padding: 25px; border-radius: 8px; margin-bottom: 30px; }
+        .input-section { margin-bottom: 25px; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background: #fff; }
+        label { font-weight: bold; color: var(--touro-blue); display: block; margin-bottom: 10px; }
+        textarea { width: 100%; height: 115px; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 15px; box-sizing: border-box; resize: vertical; }
+        .feedback-container { margin-top: 10px; font-size: 0.85em; }
+        .pass { color: #155724; background: #d4edda; padding: 5px 10px; border-radius: 4px; margin: 2px 0; border-left: 4px solid var(--success); }
+        .fail { color: #721c24; background: #f8d7da; padding: 5px 10px; border-radius: 4px; margin: 2px 0; border-left: 4px solid var(--error); }
+        .btn { padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn-new { background: var(--accent); color: white; }
+        .btn-dl { background: var(--success); color: white; width: 100%; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="score-panel">
+        <strong>CURRENT GRADE: <span id="totalScore">0</span> / 11 pts</strong>
+        <div id="gradeStatus" style="font-size: 0.85em; margin-top: 5px;">Comprehensive ICF Logic Analysis Active...</div>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h1>Clinical Assessment & Logic Trainer</h1>
+        <button class="btn btn-new" onclick="generateRandomCase()">Generate Random Case</button>
+    </div>
+
+    <div class="case-box" id="caseDisplay">
+        <div id="ptCaseContent">Select "Generate Random Case" to begin.</div>
+    </div>
+
+    
+
+    <div class="input-section">
+        <label>Section 1: Clinical Summary (ICD-10, Age, Sex, Setting, Acuity)</label>
+        <textarea id="summaryIn" oninput="runGradingLogic()"></textarea>
+        <div id="summaryFeedback" class="feedback-container"></div>
+    </div>
+
+    <div class="input-section">
+        <label>Section 2: PT Assessment (Consistency & Participation/Activity Bridge)</label>
+        <p style="font-size: 0.8em; color: #666;"><em>Grade focuses on associating impairments to hobbies, jobs, sports, ADLs, or IADLs.</em></p>
+        <textarea id="evalIn" oninput="runGradingLogic()"></textarea>
+        <div id="evalFeedback" class="feedback-container"></div>
+    </div>
+
+    <div class="input-section">
+        <label>Section 3: Problem List (ICF Labels)</label>
+        <textarea id="probIn" oninput="runGradingLogic()" placeholder="Impairments:&#10;Activities:&#10;Participation:"></textarea>
+        <div id="probFeedback" class="feedback-container"></div>
+    </div>
+
+    <div class="input-section">
+        <label>Section 4: Prognosis & Medical Necessity (NLP Check)</label>
+        <textarea id="progIn" oninput="runGradingLogic()" placeholder="Potential is... based on... Skilled PT is required to..."></textarea>
+        <div id="progFeedback" class="feedback-container"></div>
+    </div>
+
+    <button class="btn btn-dl" onclick="downloadReport()">Validate & Download Final Note</button>
+</div>
+
+<script>
+// Logic Dictionaries
+const impairmentTerms = ["strength", "sensation", "range", "rom", "tone", "reflex", "c6", "pain", "proprioception", "tremor", "edema", "clonus"];
+
+// Expanded to include Hobbies, Sports, Jobs, ADLs, and IADLs
+const activityParticipationTerms = [
+    // Basic Activities & ADLs
+    "gait", "ambulation", "transfer", "walking", "stairs", "dressing", "grooming", "reach", "mobility", "falls", "balance", "adl", "toileting", "feeding",
+    // Instrumental ADLs & IADLs
+    "cooking", "cleaning", "driving", "shopping", "finances", "laundry", "medication",
+    // Hobbies, Sports & Vocational
+    "job", "work", "teacher", "gardening", "hiking", "sport", "golf", "tennis", "running", "recreation", "volunteer", "church", "community", "hobby"
+];
+
+const necessityNLP = ["necessity", "necessary", "required", "requires", "benefit", "skilled", "justified", "expert", "professional"];
+
+const cases = [
+    { name: "Cervical Spondylotic Myelopathy", code: "M50.022", age: "70", sex: "Male", setting: "Outpatient", onset: "14 days", plof: "Independent community ambulator; enjoys gardening", clof: "Frequent tripping; dropping hand tools", context: "Motivated; lives in split-level home.", tests: ["3+/5 Wrist Strength", "+ Hoffmann's", "Ataxic gait", "C6 impaired light touch"] },
+    { name: "LUMBAR STENOSIS", code: "M48.061", age: "65", sex: "Female", setting: "Home Health", onset: "7 days", plof: "Works as a librarian; active golfer", clof: "Neurogenic claudication after 5 mins standing", context: "Lives with spouse; single story.", tests: ["Diminished S1 reflex", "Weak Hallux extension", "Pain 6/10 with extension"] }
+];
+
+function generateRandomCase() {
+    const c = cases[Math.floor(Math.random() * cases.length)];
+    document.getElementById('ptCaseContent').innerHTML = `
+        <h3>${c.name} (${c.code})</h3>
+        <p><strong>Pt:</strong> ${c.age}yo ${c.sex} | <strong>Onset:</strong> ${c.onset} ago | <strong>Setting:</strong> ${c.setting}</p>
+        <p><strong>PLOF:</strong> ${c.plof} | <strong>CLOF:</strong> ${c.clof}</p>
+        <p><strong>Context:</strong> ${c.context}</p>
+        <ul>${c.tests.map(t => `<li>${t}</li>`).join('')}</ul>
+    `;
+    document.querySelectorAll('textarea').forEach(t => t.value = '');
+    runGradingLogic();
+}
+
+function runGradingLogic() {
+    const sm = document.getElementById('summaryIn').value.toUpperCase();
+    const ev = document.getElementById('evalIn').value.toLowerCase();
+    const pb = document.getElementById('probIn').value.toLowerCase();
+    const pg = document.getElementById('progIn').value.toLowerCase();
+    
+    let pts = 0;
+    let smF = [], evF = [], pbF = [], pgF = [];
+
+    // Section 1: Summary (3 pts)
+    if (/[A-Z][0-9][0-9]\.[0-9A-Z]{1,4}/.test(sm)) { pts++; smF.push("✓ ICD-10 Code validated (1pt)"); } else { smF.push("✗ Missing ICD-10 Code (0pt)"); }
+    if (sm.includes('MALE') || sm.includes('FEMALE') || sm.includes('YO')) { pts++; smF.push("✓ Demographics present (1pt)"); } else { smF.push("✗ Missing Age/Sex (0pt)"); }
+    if (sm.includes('DAYS') || sm.includes('ONSET') || sm.includes('ACUTE') || sm.includes('SETTING')) { pts++; smF.push("✓ Setting/Acuity noted (1pt)"); } else { smF.push("✗ Missing Setting or Onset (0pt)"); }
+
+    // Section 2: Assessment (3 pts)
+    if (ev.includes('consistent')) { pts++; evF.push("✓ Scholarly consistency statement (1pt)"); } else { evF.push("✗ Missing 'consistent' statement (0pt)"); }
+    if (ev.includes('system') || ev.includes('neuromuscular') || ev.includes('musculoskeletal')) { pts++; evF.push("✓ Body system involvement noted (1pt)"); } else { evF.push("✗ Specify involved body system (0pt)"); }
+    
+    const hasImpairment = impairmentTerms.some(term => ev.includes(term));
+    const hasActivityPart = activityParticipationTerms.some(term => ev.includes(term));
+    if (hasImpairment && hasActivityPart) { pts++; evF.push("✓ Nuanced Bridge: Impairment associated to Activity/Participation (1pt)"); } 
+    else { evF.push("✗ Link an impairment (e.g. strength) to a task (e.g. golf, gardening, or gait) (0pt)"); }
+
+    // Section 3: Problem List (2 pts)
+    if (pb.includes('impairment') && (pb.includes('activity') || pb.includes('participation'))) { pts++; pbF.push("✓ ICF labels identified (1pt)"); } 
+    else { pbF.push("✗ Label Impairments, Activities, or Participation (0pt)"); }
+    if (pb.length > 30) { pts++; pbF.push("✓ Problem List content (1pt)"); } 
+    else { pbF.push("✗ List lacks detail (0pt)"); }
+
+    // Section 4: Prognosis & Necessity (3 pts)
+    if (pg.includes('motivation') || pg.includes('home') || pg.includes('barrier') || pg.includes('support')) { pts++; pgF.push("✓ Contextual factors utilized (1pt)"); } 
+    else { pgF.push("✗ Address personal/env factors (0pt)"); }
+    if (pg.includes('week') || pg.includes('month') || pg.includes('discharge') || pg.includes('dc')) { pts++; pgF.push("✓ Timeline and DC expectations (1pt)"); } 
+    else { pgF.push("✗ Missing timeline/DC plan (0pt)"); }
+    
+    const hasNecessity = necessityNLP.some(term => pg.includes(term));
+    if (hasNecessity) { pts++; pgF.push("✓ NLP Check: Medical necessity requirement found (1pt)"); } 
+    else { pgF.push("✗ Missing 'required' or 'necessity' statement (0pt)"); }
+
+    document.getElementById('totalScore').innerText = pts;
+    renderF('summaryFeedback', smF); renderF('evalFeedback', evF); renderF('probFeedback', pbF); renderF('progFeedback', pgF);
+}
+
+function renderF(id, arr) { document.getElementById(id).innerHTML = arr.map(m => `<div class="${m.startsWith('✓')?'pass':'fail'}">${m}</div>`).join(''); }
+
+function downloadReport() {
+    const content = `PT STUDENT EVALUATION\nScore: ${document.getElementById('totalScore').innerText}/11\n\nSUMMARY:\n${document.getElementById('summaryIn').value}\n\nASSESSMENT:\n${document.getElementById('evalIn').value}\n\nPROBLEM LIST:\n${document.getElementById('probIn').value}\n\nPROGNOSIS:\n${document.getElementById('progIn').value}`;
+    const blob = new Blob([content], {type: 'text/plain'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'Participation_Logic_Trainer.txt'; a.click();
+}
+generateRandomCase();
+</script>
+</body>
+</html>
